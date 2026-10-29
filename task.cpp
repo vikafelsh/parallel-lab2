@@ -1,4 +1,5 @@
 //1.2.1
+
 #include <iostream>
 #include <thread>
 #include <mutex>
@@ -73,6 +74,7 @@ int main() {
 }
 
 //1.2.2
+
 #include <iostream>
 #include <thread>
 #include <mutex>
@@ -189,3 +191,85 @@ int main() {
 }
 
 //1.2.4
+
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <queue>
+#include <condition_variable>
+
+using namespace std;
+
+queue<int> dataQueue;
+mutex m;
+condition_variable cv;
+bool inputFinished = false;
+
+bool IsPrime(int number) {
+    if (number < 2) return false;
+
+    for (int i = 2; i <= number / i; i++) {
+        if (number % i == 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void DataPreparation() {
+    int number;
+
+    cout << "Enter integers (0 to finish): " << endl;
+
+    while (cin >> number && number != 0) {
+        {
+            lock_guard<mutex> lock(m);
+            dataQueue.push(number);
+        }
+
+        cv.notify_one();
+    }
+
+    {
+        lock_guard<mutex> lock(m);
+        inputFinished = true;
+    }
+
+    cv.notify_one();
+}
+
+void DataProcessing() {
+    while (true) {
+        unique_lock<mutex> lock(m);
+
+        cv.wait(lock, [] {
+            return !dataQueue.empty() || inputFinished;
+            });
+
+        if (dataQueue.empty() && inputFinished) {
+            break;
+        }
+
+        int number = dataQueue.front();
+        dataQueue.pop();
+
+        lock.unlock();
+
+        if (IsPrime(number)) {
+            cout << "Prime number: " << number << endl;
+        }
+    }
+}
+
+int main() {
+    thread preparation(DataPreparation);
+    thread processing(DataProcessing);
+
+    preparation.detach();
+    processing.join();
+
+    return 0;
+}
+
+//1.2.5
