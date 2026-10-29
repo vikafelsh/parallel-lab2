@@ -135,3 +135,57 @@ int main() {
 }
 
 //1.2.3
+
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
+
+using namespace std;
+
+mutex m;
+condition_variable cv;
+int i = 0;
+
+void Waits(int number) {
+    unique_lock<mutex> lock(m);
+
+    cv.wait(lock, [] {
+        return i == 1;
+        });
+
+    cout << "Message from Thread " << number << endl;
+}
+
+void Notify() {
+    this_thread::sleep_for(chrono::milliseconds(100));
+
+    {
+        lock_guard<mutex> lock(m);
+        i = 1;
+        cout << "Notify: Sending signal..." << endl;
+    }
+
+    cv.notify_one();
+}
+
+int main() {
+    thread Thread1(Waits, 1);
+    thread Thread2(Waits, 2);
+    thread Thread3(Waits, 3);
+
+    thread notifyThread(Notify);
+
+    notifyThread.join();
+
+    Thread1.detach();
+    Thread2.detach();
+    Thread3.detach();
+
+    this_thread::sleep_for(chrono::milliseconds(100));
+
+    return 0;
+}
+
+//1.2.4
