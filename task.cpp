@@ -273,3 +273,91 @@ int main() {
 }
 
 //1.2.5
+
+
+#include <iostream>
+#include <future>
+#include <cmath>
+#include <chrono>
+
+using namespace std;
+
+bool IsPrime(int number) {
+    if (number < 2) return false;
+
+    for (int i = 2; i <= number / i; i++) {
+        if (number % i == 0)
+            return false;
+    }
+    return true;
+}
+
+int FindPrime(int n) {
+    int count = 0;
+    int number = 1;
+
+    while (count < n) {
+        number++;
+
+        if (IsPrime(number))
+            count++;
+    }
+
+    return number;
+}
+
+void Test(int n, launch mode) {
+    auto result = async(mode, FindPrime, n);
+
+    int choice;
+
+    cout << "\nChoose function:\n";
+    cout << "1 - Square root\n";
+    cout << "2 - Sine\n";
+    cout << "3 - Natural logarithm\n";
+    cout << "Your choice: ";
+    cin >> choice;
+
+    if (choice == 1)
+        cout << "sqrt(" << n << ") = " << sqrt(n) << endl;
+    else if (choice == 2)
+        cout << "sin(" << n << ") = " << sin(n) << endl;
+    else if (choice == 3)
+        cout << "ln(" << n << ") = " << log(n) << endl;
+    else
+        cout << "Invalid choice!" << endl;
+
+    auto start = chrono::steady_clock::now();
+
+    int prime = result.get();
+
+    auto end = chrono::steady_clock::now();
+
+    auto time = chrono::duration<double>(end - start);
+
+    cout << "Prime number: " << prime << endl;
+    cout << "Waiting time: " << time.count()
+        << " seconds\n";
+}
+
+int main() {
+    int n;
+
+    cout << "Enter prime number position: ";
+    cin >> n;
+
+    if (!cin || n <= 0) {
+        cout << "Invalid input!" << endl;
+        return 1;
+    }
+
+    cout << "\n--- DEFERRED ---\n";
+    Test(n, launch::deferred);
+
+    cout << "\n--- ASYNC ---\n";
+    Test(n, launch::async);
+
+    return 0;
+}
+
+//1.2.6
