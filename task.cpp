@@ -475,3 +475,89 @@ int main() {
 }
 
 //1.2.7
+
+#include <iostream>
+#include <thread>
+#include <future>
+#include <chrono>
+#include <cmath>
+
+using namespace std;
+
+bool IsPrime(int number) {
+    if (number < 2) return false;
+
+    for (int i = 2; i <= number / i; i++) {
+        if (number % i == 0)
+            return false;
+    }
+
+    return true;
+}
+
+int FindPrime(int n) {
+    int count = 0;
+    int number = 1;
+
+    while (count < n) {
+        number++;
+
+        if (IsPrime(number))
+            count++;
+    }
+
+    return number;
+}
+
+void Thread1(int n, promise<int> p1,
+    promise<bool> signal, promise<int> p2) {
+
+    p1.set_value(FindPrime(n));
+
+    signal.set_value(true);
+
+    p2.set_value(FindPrime(n * 10));
+}
+
+void Thread2(int n, future<bool> signal) {
+    if (signal.get()) {
+        this_thread::sleep_for(chrono::seconds(2));
+        cout << "Square root of " << n << " = "
+            << sqrt(n) << endl;
+    }
+}
+
+int main() {
+    int n;
+
+    cout << "Enter prime number position: ";
+    cin >> n;
+
+    if (!cin || n <= 0 || n > 1000000) {
+        cout << "Invalid input!" << endl;
+        return 1;
+    }
+
+    promise<int> p1, p2;
+    promise<bool> signal;
+
+    future<int> f1 = p1.get_future();
+    future<int> f2 = p2.get_future();
+    future<bool> fSignal = signal.get_future();
+
+    thread t1(Thread1, n, move(p1),
+        move(signal), move(p2));
+
+    thread t2(Thread2, n, move(fSignal));
+
+    cout << "Prime number " << n << ": "
+        << f1.get() << endl;
+
+    cout << "Prime number " << n * 10 << ": "
+        << f2.get() << endl;
+
+    t1.join();
+    t2.join();
+
+    return 0;
+}
