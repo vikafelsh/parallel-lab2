@@ -361,3 +361,117 @@ int main() {
 }
 
 //1.2.6
+
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+#include <deque>
+#include <vector>
+
+using namespace std;
+
+deque<packaged_task<int(int)>> tasks;
+deque<int> numbers;
+vector<future<int>> results;
+
+mutex m;
+condition_variable cv;
+bool finished = false;
+
+bool IsPrime(int number) {
+    if (number < 2) return false;
+
+    for (int i = 2; i <= number / i; i++) {
+        if (number % i == 0)
+            return false;
+    }
+
+    return true;
+}
+
+int FindPrime(int n) {
+    int count = 0;
+    int number = 1;
+
+    while (count < n) {
+        number++;
+
+        if (IsPrime(number))
+            count++;
+    }
+
+    return number;
+}
+
+void Worker() {
+    while (true) {
+        packaged_task<int(int)> task;
+        int n;
+
+        {
+            unique_lock<mutex> lock(m);
+
+            cv.wait(lock, [] {
+                return !tasks.empty() || finished;
+                });
+
+            if (tasks.empty() && finished)
+                break;
+
+            task = move(tasks.front());
+            tasks.pop_front();
+
+            n = numbers.front();
+            numbers.pop_front();
+        }
+
+        task(n);
+    }
+}
+
+int main() {
+    thread worker(Worker);
+
+    int n;
+
+    cout << "Enter prime number positions (0 to stop):\n";
+
+    while (cin >> n && n != 0) {
+        if (n < 0) {
+            cout << "Enter a positive number!\n";
+            continue;
+        }
+
+        packaged_task<int(int)> task(FindPrime);
+        results.push_back(task.get_future());
+
+        {
+            lock_guard<mutex> lock(m);
+            tasks.push_back(move(task));
+            numbers.push_back(n);
+        }
+
+        cv.notify_one();
+    }
+
+    {
+        lock_guard<mutex> lock(m);
+        finished = true;
+    }
+
+    cv.notify_one();
+
+    worker.join();
+
+    cout << "\nResults:\n";
+
+    for (auto& result : results) {
+        cout << result.get() << endl;
+    }
+
+    return 0;
+}
+
+//1.2.7
